@@ -9,6 +9,9 @@ description: |-
 Manages an agent queue within Azure DevOps. In the UI, this is equivelant to adding an
 Organization defined pool to a project.
 
+The created queue is not authorized for use by all pipeliens in the project. However,
+the `azuredevops_resource_authorization` resource can be used to grant authorization.
+
 ## Example Usage
 
 ```hcl
@@ -19,9 +22,16 @@ resource "azuredevops_project" "p" {
 # TODO: Replace hardcoded pool ID with data reference once the following issue is closed:
 #   https://github.com/microsoft/terraform-provider-azuredevops/issues/293
 resource "azuredevops_agent_queue" "q" {
-  project_id             = azuredevops_project.p.id
-  agent_pool_id          = 16
-  grant_to_all_pipelines = true
+  project_id    = azuredevops_project.p.id
+  agent_pool_id = 16
+}
+
+# Grant acccess to queue to all pipelines in the project
+resource "azuredevops_resource_authorization" "auth" {
+  project_id  = azuredevops_project.p.id
+  resource_id = azuredevops_agent_queue.q.id
+  type        = "queue"
+  authorized  = true
 }
 ```
 
@@ -31,7 +41,6 @@ The following arguments are supported:
 
 * `project_id` - (Required) The ID of the project in which to create the resource.
 * `agent_pool_id` - (Required) The ID of the organization agent pool.
-* `grant_to_all_pipelines` - (Required) True if this pool shoud be available to all pipelines, false otherwise. Note: If this a create only field. If this changes in the UI, Terraform will not attempt to revert it.
 
 ## Attributes Reference
 

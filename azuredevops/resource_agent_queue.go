@@ -2,6 +2,9 @@ package azuredevops
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/taskagent"
@@ -9,14 +12,11 @@ import (
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/config"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/converter"
 	"github.com/microsoft/terraform-provider-azuredevops/azuredevops/utils/suppress"
-	"strconv"
-	"strings"
 )
 
 const (
-	agentPoolID         = "agent_pool_id"
-	grantToAllPipelines = "grant_to_all_pipelines"
-	projectID           = "project_id"
+	agentPoolID = "agent_pool_id"
+	projectID   = "project_id"
 )
 
 func resourceAgentQueue() *schema.Resource {
@@ -32,15 +32,6 @@ func resourceAgentQueue() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			grantToAllPipelines: {
-				Type: schema.TypeBool,
-				// This is a create only field. Ignore all changes
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return true },
-				Default:          true,
-				Optional:         true,
-				// Needed to make Terraform happy
-				ForceNew: true,
-			},
 			projectID: {
 				Type:             schema.TypeString,
 				Required:         true,
@@ -52,26 +43,20 @@ func resourceAgentQueue() *schema.Resource {
 	}
 }
 
-type agentQueueArgs struct {
-	agentQueue         *taskagent.TaskAgentQueue
-	authorizePipelines bool
-	projectID          string
-}
-
 func resourceAgentQueueCreate(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
-	queueArgs, err := expandAgentQueue(d)
+	queue, projectID, err := expandAgentQueue(d)
 
-	referencedPool, err := azureAgentPoolRead(clients, *queueArgs.agentQueue.Pool.Id)
+	referencedPool, err := azureAgentPoolRead(clients, *queue.Pool.Id)
 	if err != nil {
 		return fmt.Errorf("Error looking up referenced agent pool: %+v", err)
 	}
 
-	queueArgs.agentQueue.Name = referencedPool.Name
+	queue.Name = referencedPool.Name
 	createdQueue, err := clients.TaskAgentClient.AddAgentQueue(clients.Ctx, taskagent.AddAgentQueueArgs{
-		Queue:              queueArgs.agentQueue,
-		Project:            &queueArgs.projectID,
-		AuthorizePipelines: &queueArgs.authorizePipelines,
+		Queue:              queue,
+		Project:            &projectID,
+		AuthorizePipelines: converter.Bool(false),
 	})
 
 	if err != nil {
@@ -82,7 +67,7 @@ func resourceAgentQueueCreate(d *schema.ResourceData, m interface{}) error {
 	return resourceAgentQueueRead(d, m)
 }
 
-func expandAgentQueue(d *schema.ResourceData) (*agentQueueArgs, error) {
+func expandAgentQueue(d *schema.ResourceData) (*taskagent.TaskAgentQueue, string, error) {
 	queue := &taskagent.TaskAgentQueue{
 		Pool: &taskagent.TaskAgentPoolReference{
 			Id: converter.Int(d.Get(agentPoolID).(int)),
@@ -90,31 +75,19 @@ func expandAgentQueue(d *schema.ResourceData) (*agentQueueArgs, error) {
 	}
 
 	if d.Id() != "" {
-		id, err := asciiToIntPtr(d.Id())
+		id, err := converter.ASCIIToIntPtr(d.Id())
 		if err != nil {
-			return nil, fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
+			return nil, "", fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
 		}
 		queue.Id = id
 	}
 
-	return &agentQueueArgs{
-		authorizePipelines: d.Get(grantToAllPipelines).(bool),
-		projectID:          d.Get(projectID).(string),
-		agentQueue:         queue,
-	}, nil
-}
-
-func asciiToIntPtr(value string) (*int, error) {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return nil, err
-	}
-	return converter.Int(i), nil
+	return queue, d.Get(projectID).(string), nil
 }
 
 func resourceAgentQueueRead(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
-	queueID, err := asciiToIntPtr(d.Id())
+	queueID, err := converter.ASCIIToIntPtr(d.Id())
 	if err != nil {
 		return fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
 	}
@@ -129,6 +102,10 @@ func resourceAgentQueueRead(d *schema.ResourceData, m interface{}) error {
 		return nil
 	}
 
+	if err != nil {
+		return fmt.Errorf("Error reading the agent queue resource: %+v", err)
+	}
+
 	if queue.Pool != nil && queue.Pool.Id != nil {
 		d.Set(agentPoolID, *queue.Pool.Id)
 	}
@@ -138,7 +115,7 @@ func resourceAgentQueueRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceAgentQueueDelete(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
-	queueID, err := asciiToIntPtr(d.Id())
+	queueID, err := converter.ASCIIToIntPtr(d.Id())
 	if err != nil {
 		return fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
 	}
