@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	agentPoolID = "agent_pool_id"
-	projectID   = "project_id"
+	agentPoolID                      = "agent_pool_id"
+	projectID                        = "project_id"
+	invalidQueueIDErrorMessageFormat = "Queue ID was unexpectedly not a valid integer: %+v"
 )
 
 func resourceAgentQueue() *schema.Resource {
@@ -77,7 +78,7 @@ func expandAgentQueue(d *schema.ResourceData) (*taskagent.TaskAgentQueue, string
 	if d.Id() != "" {
 		id, err := converter.ASCIIToIntPtr(d.Id())
 		if err != nil {
-			return nil, "", fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
+			return nil, "", fmt.Errorf(invalidQueueIDErrorMessageFormat, err)
 		}
 		queue.Id = id
 	}
@@ -89,7 +90,7 @@ func resourceAgentQueueRead(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
 	queueID, err := converter.ASCIIToIntPtr(d.Id())
 	if err != nil {
-		return fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
+		return fmt.Errorf(invalidQueueIDErrorMessageFormat, err)
 	}
 
 	queue, err := clients.TaskAgentClient.GetAgentQueue(clients.Ctx, taskagent.GetAgentQueueArgs{
@@ -117,7 +118,7 @@ func resourceAgentQueueDelete(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
 	queueID, err := converter.ASCIIToIntPtr(d.Id())
 	if err != nil {
-		return fmt.Errorf("Queue ID was unexpectedly not a valid integer: %+v", err)
+		return fmt.Errorf(invalidQueueIDErrorMessageFormat, err)
 	}
 
 	err = clients.TaskAgentClient.DeleteAgentQueue(clients.Ctx, taskagent.DeleteAgentQueueArgs{
