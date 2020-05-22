@@ -24,6 +24,10 @@ const (
 	vgIsSecret    = "is_secret"
 )
 
+const (
+	invalidVarGroupIDErrorMessageFormat = "Error parsing the variable group ID from the Terraform resource data: %v"
+)
+
 func resourceVariableGroup() *schema.Resource {
 	return &schema.Resource{
 		Create:   resourceVariableGroupCreate,
@@ -108,7 +112,7 @@ func resourceVariableGroupRead(d *schema.ResourceData, m interface{}) error {
 
 	projectID, variableGroupID, err := tfhelper.ParseProjectIDAndResourceID(d)
 	if err != nil {
-		return fmt.Errorf("Error parsing the variable group ID from the Terraform resource data: %v", err)
+		return fmt.Errorf(invalidVarGroupIDErrorMessageFormat, err)
 	}
 
 	variableGroup, err := clients.TaskAgentClient.GetVariableGroup(
@@ -155,7 +159,7 @@ func resourceVariableGroupUpdate(d *schema.ResourceData, m interface{}) error {
 
 	_, variableGroupID, err := tfhelper.ParseProjectIDAndResourceID(d)
 	if err != nil {
-		return fmt.Errorf("Error parsing the variable group ID from the Terraform resource data: %v", err)
+		return fmt.Errorf(invalidVarGroupIDErrorMessageFormat, err)
 	}
 
 	updatedVariableGroup, err := updateVariableGroup(clients, variableGroupParams, &variableGroupID, projectID)
@@ -181,7 +185,7 @@ func resourceVariableGroupDelete(d *schema.ResourceData, m interface{}) error {
 	clients := m.(*config.AggregatedClient)
 	projectID, variableGroupID, err := tfhelper.ParseProjectIDAndResourceID(d)
 	if err != nil {
-		return fmt.Errorf("Error parsing the variable group ID from the Terraform resource data: %v", err)
+		return fmt.Errorf(invalidVarGroupIDErrorMessageFormat, err)
 	}
 	//delete the definition resource (allow access)
 	varGroupID := strconv.Itoa(variableGroupID)
