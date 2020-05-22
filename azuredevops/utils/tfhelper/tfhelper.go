@@ -166,3 +166,18 @@ func ImportProjectQualifiedResource() *schema.ResourceImporter {
 		},
 	}
 }
+
+// FindMapInSetWithGivenKeyValue Pulls an element of `TypeSet` from the state. The values of this set are assumed to be
+// `TypeMap`. The maps in the set are searched until a map is found with a value for `keyName` equal to `keyValue`.
+//
+// If no such map is found, `nil` is returned
+func FindMapInSetWithGivenKeyValue(d *schema.ResourceData, setName string, keyName string, keyValue interface{}) map[string]interface{} {
+	for _, value := range d.Get(setName).(*schema.Set).List() {
+		valueAsMap := value.(map[string]interface{})
+		// Note: casing matters here so we will use `==` over `strings.EqualFold`
+		if valueAsMap[keyName] == keyValue {
+			return valueAsMap
+		}
+	}
+	return nil
+}
