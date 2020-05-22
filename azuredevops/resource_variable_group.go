@@ -16,22 +16,11 @@ import (
 
 func resourceVariableGroup() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceVariableGroupCreate,
-		Read:   resourceVariableGroupRead,
-		Update: resourceVariableGroupUpdate,
-		Delete: resourceVariableGroupDelete,
-		Importer: &schema.ResourceImporter{
-			State: func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-				projectID, variableGroupID, err := ParseImportedProjectIDAndID(meta.(*config.AggregatedClient), d.Id())
-				if err != nil {
-					return nil, fmt.Errorf("Error parsing the variable group ID from the Terraform resource data: %v", err)
-				}
-				d.Set("project_id", projectID)
-				d.SetId(fmt.Sprintf("%d", variableGroupID))
-
-				return []*schema.ResourceData{d}, nil
-			},
-		},
+		Create:   resourceVariableGroupCreate,
+		Read:     resourceVariableGroupRead,
+		Update:   resourceVariableGroupUpdate,
+		Delete:   resourceVariableGroupDelete,
+		Importer: tfhelper.ImportProjectQualifiedResource(),
 		Schema: map[string]*schema.Schema{
 			"project_id": {
 				Type:         schema.TypeString,

@@ -91,15 +91,6 @@ func ParseProjectIDAndResourceID(d *schema.ResourceData) (string, int, error) {
 	return projectID, resourceID, err
 }
 
-//PrettyPrint json
-//func PrettyPrint(v interface{}) (err error) {
-//	b, err := json.MarshalIndent(v, "", "  ")
-//	if err == nil {
-//		log.Printf(string(b))
-//	}
-//	return
-//}
-
 // ParseImportedID parse the imported int Id from the terraform import
 func ParseImportedID(id string) (string, int, error) {
 	parts := strings.SplitN(id, "/", 2)
@@ -155,4 +146,23 @@ func ExpandStringList(d []interface{}) []string {
 // ExpandStringSet expand a set into array of string
 func ExpandStringSet(d *schema.Set) []string {
 	return ExpandStringList(d.List())
+}
+
+// ImportProjectQualifiedResource Import a resource by an ID that looks like one of the following:
+//		<project ID>/<resource ID>
+//		<project name>/<resource ID>
+func ImportProjectQualifiedResource() *schema.ResourceImporter {
+	return &schema.ResourceImporter{
+		State: func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+			projectNameOrID, resourceID, err := ParseImportedName(d.Id())
+
+			if err != nil {
+				return nil, fmt.Errorf("error parsing the resource ID from the Terraform resource data: %v", err)
+			}
+			d.Set("project_id", projectNameOrID)
+			d.SetId(resourceID)
+
+			return []*schema.ResourceData{d}, nil
+		},
+	}
 }

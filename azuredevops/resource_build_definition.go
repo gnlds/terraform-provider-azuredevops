@@ -70,22 +70,11 @@ func resourceBuildDefinition() *schema.Resource {
 	}
 
 	return &schema.Resource{
-		Create: resourceBuildDefinitionCreate,
-		Read:   resourceBuildDefinitionRead,
-		Update: resourceBuildDefinitionUpdate,
-		Delete: resourceBuildDefinitionDelete,
-		Importer: &schema.ResourceImporter{
-			State: func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-				projectID, buildDefinitionID, err := ParseImportedProjectIDAndID(meta.(*config.AggregatedClient), d.Id())
-				if err != nil {
-					return nil, fmt.Errorf("error parsing the build definition ID from the Terraform resource data: %v", err)
-				}
-				d.Set("project_id", projectID)
-				d.SetId(fmt.Sprintf("%d", buildDefinitionID))
-
-				return []*schema.ResourceData{d}, nil
-			},
-		},
+		Create:   resourceBuildDefinitionCreate,
+		Read:     resourceBuildDefinitionRead,
+		Update:   resourceBuildDefinitionUpdate,
+		Delete:   resourceBuildDefinitionDelete,
+		Importer: tfhelper.ImportProjectQualifiedResource(),
 		Schema: map[string]*schema.Schema{
 			"project_id": {
 				Type:     schema.TypeString,
